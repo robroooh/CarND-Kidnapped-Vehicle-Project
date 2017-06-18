@@ -27,7 +27,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	std::cout << "Initializing ParticleFilter..." << std::endl;
 	default_random_engine gen;
 
-	num_particles = 2;
+	num_particles = 1;
 	double std_x = std[0];
 	double std_y = std[1];
 	double std_yaw = std[2];
@@ -100,7 +100,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 		}
 }
 
-void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
+void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs> &observations) {
 	// TODO: Find the predicted measurement that is closest to each observed measurement and assign the 
 	//   observed measurement to this particular landmark.
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
@@ -110,6 +110,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	double min_x = 0;
 	double min_y = 0;
 
+	std::cout <<"data ASS ";
 	for(int i = 0; i < observations.size(); i++){
 		double min_dist = 1000000000;
 		for(int j = 0; j < predicted.size(); j++){
@@ -120,15 +121,17 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 
 			double tmp_dist = dist(x1,y1,x2,y2);
 			if (tmp_dist <= min_dist) {
-				min_id = j;
-				min_x = x2;
-				min_y = y2;
+				min_id = predicted[j].id;
+				min_x = x1;
+				min_y = y1;
 				min_dist = tmp_dist;
 			}
 		}
 		observations[i].id = min_id;
 		observations[i].x = min_x;
 		observations[i].y = min_y;
+		// std::cout << "Obs id,x,y: "<< observations[i].id
+		// << " " << observations[i].x << " " << observations[i].y << std::endl;
 	}
 }
 
@@ -144,10 +147,13 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation 
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
+	weights.clear();
 	for(int i = 0; i < particles.size(); i++){
 
 		std::vector<LandmarkObs> landmark_inrange;
 		std::vector<LandmarkObs> observations_pspace;
+
+		std::cout << "----------Landmark in range ---------------- "<< std::endl;
 
 		// Get only landmark that is in range
 		for(int j = 0; j < map_landmarks.landmark_list.size(); j++){
@@ -159,26 +165,39 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			double dist_x = fabs(lm_tmp.x - particles[i].x);
 			double dist_y = fabs(lm_tmp.y - particles[i].y);
 			if (dist_x <= sensor_range && dist_y <= sensor_range) {
+				std::cout << "Landmark id,x,y: "<< lm_tmp.id
+				 << " " << lm_tmp.x << " " << lm_tmp.y << std::endl;
 				landmark_inrange.push_back(lm_tmp);
 			}
 		}
 
+		std::cout << "-------Obs tranform -------: "<< std::endl;
 		// Transform Obs to particle space
 		for(int j = 0; j < observations.size(); j++){
 			LandmarkObs obs_tmp;
-			obs_tmp.id = j;
+			obs_tmp.id = observations[j].id;
 			obs_tmp.x = observations[j].x*cos(particles[i].theta) - observations[j].y*sin(particles[i].theta) + particles[i].x;
 			obs_tmp.y = observations[j].x*sin(particles[i].theta) + observations[j].y*cos(particles[i].theta) + particles[i].y;
+			std::cout << "From " << observations[j].x << " " 
+			<< observations[j].y << " to " << obs_tmp.x << " " << obs_tmp.y << std::endl;
 			observations_pspace.push_back(obs_tmp);
 		}
 
 		// Parse to this function to see which observation belongs to which landmark
 		dataAssociation(landmark_inrange, observations_pspace);
+		std::cout << "---------after dataAss ----------" << std::endl;
+		for(int j = 0; j < observations_pspace.size(); j++){
+			LandmarkObs obs_tmp;
+			obs_tmp.id = observations_pspace[j].id;
+			obs_tmp.x = observations_pspace[j].x;
+			obs_tmp.y = observations_pspace[j].y;
+			std::cout << "Observations id,x,y: "<< obs_tmp.id << " " << obs_tmp.x << " " << obs_tmp.y << std::endl;
+		}
 
-		double var_x = std_landmark[0]*std_landmark[0];
-		double var_y = std_landmark[1]*std_landmark[1];
-
-		std::cout << "Before update: "<< particles[i].weight << std::endl;
+		double std_x = std_landmark[0];
+		double std_y = std_landmark[1];
+		std::cout << "---------Particle's Weight update ----------" << std::endl;
+		std::cout << "Particle's Weight Before update: "<< particles[i].weight << std::endl;
 		
 		// UpdateWeights(really)
 		for(int j = 0; j < observations_pspace.size(); j++){
@@ -186,27 +205,34 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			obs_tmp.id = observations_pspace[j].id;
 			obs_tmp.x = observations_pspace[j].x;
 			obs_tmp.y = observations_pspace[j].y;
-			std::cout << "Observations id,x,y: "<< obs_tmp.id << " " << obs_tmp.x << " " << obs_tmp.y << std::endl;
+			// std::cout << "Observations id,x,y: "<< obs_tmp.id << " " << obs_tmp.x << " " << obs_tmp.y << std::endl;
 			
 			LandmarkObs pred_tmp;
 			for(int k = 0; k < landmark_inrange.size(); k++){
+				std::cout << landmark_inrange[k].id << " ";
 				if (obs_tmp.id == landmark_inrange[k].id){
 					pred_tmp.id = landmark_inrange[k].id;
 					pred_tmp.x = landmark_inrange[k].x;
 					pred_tmp.y = landmark_inrange[k].y;
 				}
 			}
+			std::cout << std::endl;
 			std::cout << "Match Landmark id,x,y: "<< pred_tmp.id << " " << pred_tmp.x << " " << pred_tmp.y << std::endl;
 
 			// Update the weights using gaussian 2d
-			double sqrt_2picov = 1/sqrt(2.0*3.14159*var_x*var_y);
-			double x_diff = pow((pred_tmp.x-obs_tmp.x),2)/(2*var_x);
-			double y_diff = pow((pred_tmp.y-obs_tmp.y),2)/(2*var_y);
-			double obs_w = sqrt_2picov * exp(-x_diff + y_diff);
+			double sqrt_2picov = 1/sqrt(2.0*3.14159*std_x*std_y);
+			double x_diff = ((pred_tmp.x-obs_tmp.x)*(pred_tmp.x-obs_tmp.x))/(2*std_x*std_x);
+			double y_diff = ((pred_tmp.y-obs_tmp.y)*(pred_tmp.y-obs_tmp.y))/(2*std_y*std_y);
+			double obs_w = sqrt_2picov * exp(-(x_diff + y_diff));
+			std::cout << "sqrt_2picov: "<< sqrt_2picov << " x_diff: "<< x_diff << " y_diff: " 
+			<< y_diff << "  exp: " <<  exp(-(x_diff + y_diff)) << "obs_w: "<< obs_w << std::endl;
+			
 			particles[i].weight = particles[i].weight*obs_w;
-			std::cout << "Updating: " << particles[i].weight << std::endl;
+			weights.push_back(particles[i].weight);
+			std::cout << "Particle's Weight Updating : " << particles[i].weight << std::endl;
 		}
-		// weights.push_back(1.0);
+
+
 	}
 }
 
@@ -216,12 +242,15 @@ void ParticleFilter::resample() {
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 	std::discrete_distribution<> d(weights.begin(), weights.end());
 	default_random_engine gen;
+	std::vector<double> resampling_weights;
 	std::vector<Particle> resampling_particles;
 
 	for(int i = 0; i < num_particles; i++){
 		resampling_particles.push_back(particles[d(gen)]);
+		resampling_weights.push_back(particles[d(gen)].weight);
 	}
 	particles = resampling_particles;
+	weights = resampling_weights;
 	
 }
 
