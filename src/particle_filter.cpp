@@ -81,7 +81,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 			double pred_theta;
 
 
-			if (fabs(yaw_rate) > 0.01) {
+			if (fabs(yaw_rate) > 0.00001) {
 				pred_x = x0 + (vel_over_yaw)*(sin(theta0+yaw_rate*delta_t) - sin(theta0));
 				pred_y = y0 + (vel_over_yaw)*(cos(theta0) - cos(theta0 + yaw_rate*delta_t));
 				pred_theta = theta0 + (yaw_rate*delta_t);
@@ -122,8 +122,8 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 			double tmp_dist = dist(x1,y1,x2,y2);
 			if (tmp_dist <= min_dist) {
 				min_id = predicted[j].id;
-				min_x = x1;
-				min_y = y1;
+				min_x = x2;
+				min_y = y2;
 				min_dist = tmp_dist;
 			}
 		}
@@ -226,13 +226,10 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			double obs_w = sqrt_2picov * exp(-(x_diff + y_diff));
 			std::cout << "sqrt_2picov: "<< sqrt_2picov << " x_diff: "<< x_diff << " y_diff: " 
 			<< y_diff << "  exp: " <<  exp(-(x_diff + y_diff)) << "obs_w: "<< obs_w << std::endl;
-			
-			particles[i].weight = particles[i].weight*obs_w;
-			weights.push_back(particles[i].weight);
 			std::cout << "Particle's Weight Updating : " << particles[i].weight << std::endl;
+			particles[i].weight = particles[i].weight*obs_w;
 		}
-
-
+		weights.push_back(particles[i].weight);
 	}
 }
 
@@ -242,16 +239,13 @@ void ParticleFilter::resample() {
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 	std::discrete_distribution<> d(weights.begin(), weights.end());
 	default_random_engine gen;
-	std::vector<double> resampling_weights;
 	std::vector<Particle> resampling_particles;
 
 	for(int i = 0; i < num_particles; i++){
 		resampling_particles.push_back(particles[d(gen)]);
-		resampling_weights.push_back(particles[d(gen)].weight);
 	}
 	particles = resampling_particles;
-	weights = resampling_weights;
-	
+	weights.clear();
 }
 
 Particle ParticleFilter::SetAssociations(Particle particle, std::vector<int> associations, std::vector<double> sense_x, std::vector<double> sense_y)
