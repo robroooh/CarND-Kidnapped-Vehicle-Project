@@ -83,7 +83,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 			} else {
 				particles[i].x = x0 + velocity*delta_t*cos(theta0);
 				particles[i].y = y0 + velocity*delta_t*sin(theta0);
-				particles[i].theta = yaw_rate;
+				particles[i].theta = theta0;
 			}
 			normal_distribution<double> dist_x(particles[i].x, std_x);
 			normal_distribution<double> dist_y(particles[i].y, std_y);
@@ -101,10 +101,10 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
 
-	int min_id = -1;
 	// std::cout << "DATA ASS" << std::endl;
 	for(int i = 0; i < observations.size(); i++){
 		double min_dist = 1000000000;
+		int min_id = -1;
 		for(int j = 0; j < predicted.size(); j++){
 			double x1 = predicted[j].x;
 			double x2 = observations[i].x;
@@ -204,13 +204,16 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 					pred_tmp.y = landmark_inrange[k].y;
 				}
 			}
-			std::cout << "Match Landmark id,x,y: "<< pred_tmp.id << " " << pred_tmp.x << " " << pred_tmp.y << std::endl;
+			std::cout << "Match Landmark id,x,y: "<< pred_tmp.id << " (" << pred_tmp.x << ", " << pred_tmp.y << ") " << std::endl;
 
 			// Update the weights using gaussian 2d
 			double sqrt_2picov = 1/sqrt(2.0*3.14159*std_x*std_y);
 			double x_diff = ((pred_tmp.x-obs_tmp.x)*(pred_tmp.x-obs_tmp.x))/(2*std_x*std_x);
 			double y_diff = ((pred_tmp.y-obs_tmp.y)*(pred_tmp.y-obs_tmp.y))/(2*std_y*std_y);
 			double obs_w = sqrt_2picov * exp(-(x_diff + y_diff));
+
+
+
 			std::cout << "sqrt_2picov: "<< sqrt_2picov << " x_diff: "<< x_diff << " y_diff: " 
 			<< y_diff << "  exp: " <<  exp(-(x_diff + y_diff)) << " obs_w: "<< obs_w << std::endl;
 			particles[i].weight *= obs_w;
